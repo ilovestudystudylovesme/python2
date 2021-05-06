@@ -1,0 +1,102 @@
+思路：
+F[i,j]表示前i天累计购买j件产品所付出的最小成本，F[i,j]可以由所有F[i-1,k](0<=k<=j)+当日新增成本计算得到
+trace[i,j]用于记录当前最优的F[i,j]是由哪个k更新得到的
+首先正向逐日推算出60天期间内最小的cost，再用最小的cost利用trace数组倒推出60天每日订货数量
+*在确定最小cost时所用的方法是在sumd[最后一天]附近寻找，由于题目允许缺货，因此循环起点设置为sumd[50]（因为缺货过久也会带来过大的缺货成本不可能最优，所以这里放宽到sumd[50]已经是充分的），若不允许缺货则用sumd[59]
+
+F[i,j] = F[i-1,k]+cost(Si, Qi, Pi, Di, Ci, ICi)			代码中60为总天数，2000略大于整个60天产品需求之和
+
+ifBuy = 1, if j-k > 0
+         = 0, if j-k = 0
+trunc(x) = x, if x>0
+             = 0,if x<=0
+SumDi = D1+D2+...+Di
+cost = ifBuy*Si					运输成本
+           +(j-k)*Pi					进货成本
+           +trunc(SumDi-j)*ICi				缺货成本
+           +trunc(j-SumDi)*Ci				当日剩余库存成本
+           +（trunc(k-SumDi-1)+(j-k)-trunc(j-SumDi))*0.5Ci	当日用掉库存成本
+
+输入：两行数，第一行p[i]第二行d[i]，d[i]必须为整数，数字与数字之间空格隔开
+输出：两行，第一行为60天最小总订货成本，第二行为最优订货策略
+
+时间代价：nDays*SumD^2，在本题数据规模下约为10^7~10^8
+
+
+
+
+
+代码：
+#include <iostream>
+#include <climits>
+using namespace std;
+
+
+int trunc(int x) {
+	return x > 0 ? x : 0;
+}
+
+int nDays = 60;
+int d[60], sumd[60], s = 480, c = 8, ic = 20;
+double p[60], f[60][2000];
+int trace[60][2000];
+
+int main() {
+
+	for (int i = 0; i < 60; i++) {
+		for (int j = 0; j < 2000; j++) {
+			f[i][j] = INT_MAX;
+		}
+	}
+	for (int i = 0; i < nDays; i++) {
+		cin >> p[i];
+	}
+
+	for (int i = 0; i < nDays; i++) {
+		cin >> d[i];
+	}
+	sumd[0] = d[0];
+	for (int i = 1; i < nDays; i++) {
+		sumd[i] = sumd[i - 1] + d[i];
+	}
+	for (int j = 0; j < 2000; j++) {
+		int ifBuy = (j > 0) ? 1 : 0;
+		f[0][j] = ifBuy * s + j * p[0] + trunc(sumd[0] - j) * ic + (j + trunc(j - sumd[0])) * 0.5 * c;
+	}
+	for (int i = 1; i < nDays; i++) {
+		for (int j = 0; j < 2000; j++) {
+			for (int k = 0; k <= j; k++) {
+				int ifBuy = (j > k) ? 1 : 0;
+				double cost = ifBuy * s + (j - k) * p[i] + trunc(sumd[i] - j) * ic + (trunc(k - sumd[i - 1]) + j - k + trunc(j - sumd[i])) * 0.5 * c;
+				double totalcost = f[i - 1][k] + cost;
+				if (totalcost < f[i][j]) {
+					f[i][j] = totalcost;
+					trace[i][j] = k;
+				}
+			}
+		}
+	}
+	double minCost = INT_MAX;
+	int k;
+	for (int j = sumd[50]; j < 2000; j++) {
+		if (f[59][j] < minCost) {
+			minCost = f[59][j];
+			k = j;
+		}
+	}
+	int seq[60];
+
+	for (int j = 59; j >= 0; j--) {
+		int lastk = trace[j][k];
+		seq[j] = k - lastk;
+		k = lastk;
+	}
+	cout << minCost << endl;
+	for (int j = 0; j < 60; j++) {
+		cout << seq[j] << " ";
+	}
+}
+
+
+
+
